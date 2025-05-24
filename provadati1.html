@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Filtro dati da Google Sheets</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  input { margin: 5px; padding: 5px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  th { background-color: #f2f2f2; }
+</style>
+</head>
+<body>
+
+<h2>Filtra dati raccolti</h2>
+
+<label>Nome: <input type="text" id="filterNome" placeholder="Filtra per nome"></label>
+<label>Luogo: <input type="text" id="filterLuogo" placeholder="Filtra per luogo"></label>
+<label>Data (YYYY-MM-DD): <input type="text" id="filterData" placeholder="Filtra per data"></label>
+
+<table id="dataTable">
+  <thead>
+    <tr><th>Nome</th><th>Luogo</th><th>Data</th><th>Attività</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+// ID del tuo Google Sheet
+const sheetId = '1lLnH6Wf1fW-z3NHBdDYuVJIa7tFd5QfOrYYdm5B9pu4';
+
+// URL per leggere i dati in formato JSON
+const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+
+// Variabile per memorizzare dati
+let rowsData = [];
+
+// Funzione per pulire la risposta JSON di Google Sheets
+function parseSheetData(data) {
+  const jsonText = data.substring(data.indexOf('(') + 1, data.lastIndexOf(')'));
+  return JSON.parse(jsonText);
+}
+
+// Carica i dati dal foglio
+async function loadData() {
+  const res = await fetch(url);
+  const text = await res.text();
+  const json = parseSheetData(text);
+  
+  rowsData = json.table.rows.map(r => {
+    const c = r.c;
+    return {
+      nome: c[0]?.v || '',
+      luogo: c[1]?.v || '',
+      data: c[2]?.v || '',
+      attivita: c[3]?.v || ''
+    };
+  });
+
+  renderTable(rowsData);
+}
+
+// Funzione per filtrare e visualizzare dati
+function renderTable(data) {
+  const tbody = document.querySelector('#dataTable tbody');
+  tbody.innerHTML = '';
+
+  const nomeFilter = document.getElementById('filterNome').value.toLowerCase();
+  const luogoFilter = document.getElementById('filterLuogo').value.toLowerCase();
+  const dataFilter = document.getElementById('filterData').value;
+
+  const filtered = data.filter(row => {
+    return row.nome.toLowerCase().includes(nomeFilter) &&
+           row.luogo.toLowerCase().includes(luogoFilter) &&
+           (dataFilter === '' || row.data.includes(dataFilter));
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4">Nessun risultato trovato</td></tr>';
+    return;
+  }
+
+  filtered.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.nome}</td><td>${row.luogo}</td><td>${row.data}</td><td>${row.attivita}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// Event listeners per filtri
+document.getElementById('filterNome').addEventListener('input', () => renderTable(rowsData));
+document.getElementById('filterLuogo').addEventListener('input', () => renderTable(rowsData));
+document.getElementById('filterData').addEventListener('input', () => renderTable(rowsData));
+
+// Carica dati all'avvio
+loadData();
+
+</script>
+
+</body>
+</html>
